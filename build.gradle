@@ -1,0 +1,108 @@
+buildscript {
+    repositories {
+        jcenter()
+        maven { url = "https://files.minecraftforge.net/maven" }
+        maven { url = "https://plugins.gradle.org/m2" }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+        classpath "gradle.plugin.net.minecrell:licenser:0.4.1"
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.+'
+    }
+}
+apply plugin: 'net.minecraftforge.gradle.forge'
+apply plugin: 'net.minecrell.licenser'
+apply plugin: 'com.jfrog.bintray'
+apply plugin: 'maven-publish'
+
+version = "0.0.1"
+group = "com.github.liachmodded"
+archivesBaseName = "nofingerprint"
+description = "Removes mod event handlers for fingerprint violation events."
+
+sourceCompatibility = targetCompatibility = '1.8' // Need this here so eclipse task generates correctly.
+compileJava {
+    sourceCompatibility = targetCompatibility = '1.8'
+    options.compilerArgs += [
+            '-Xlint:-processing',
+            '-proc:none'
+    ]
+    options.encoding = 'utf8'
+}
+
+minecraft {
+    version = "1.12.2-14.23.5.2775"
+    runDir = "run"
+    mappings = "stable_39"
+    coreMod = project.coreMod
+    makeObfSourceJar = false
+    // an Srg named sources jar is made by default. uncomment this to disable.
+}
+
+license {
+    header = project.file('LICENSE')
+    newLine false
+    style.java = 'BLOCK_COMMENT'
+
+    include '**/*.java'
+}
+
+if (System.getenv('bintrayUser') != null) {
+    bintray {
+        user = System.getenv("bintrayUser")
+        key = System.getenv("bintrayKey")
+        pkg {
+            repo = 'datapacks'
+            name = 'nofingerprint'
+            userOrg = 'liachmodded'
+            licenses = ['MIT']
+            vcsUrl = 'https://github.com/liachmodded/nofingerprint'
+        }
+    }
+
+    publishing {
+        publications {
+            MyPublication(MavenPublication) {
+                from components.java
+                groupId project.group
+                artifactId 'nofingerprint'
+                version project.version
+            }
+        }
+    }
+}
+
+processResources {
+    // this will ensure that this task is redone when the versions change.
+    inputs.property "version", project.version
+    inputs.property "mcversion", project.minecraft.version
+
+    // replace stuff in mcmod.info, nothing else
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+
+        // replace version and mcversion
+        expand 'description': project.description, 'version': project.version, 'mcversion': project.minecraft.version
+    }
+
+    // copy everything else except the mcmod.info
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}
+
+tasks.withType(Javadoc) {
+    // disable the crazy super-strict doclint tool in Java 8
+    options.addStringOption('Xdoclint:none', '-quiet')
+}
+
+jar {
+    manifest {
+        attributes(
+                'FMLCorePlugin': project.coreMod
+        )
+    }
+}
+
+runClient.outputs.upToDateWhen { false }
+runServer.outputs.upToDateWhen { false }
