@@ -23,22 +23,11 @@
  */
 package com.github.liachmodded.nofingerprint;
 
-import java.util.ListIterator;
 import java.util.Map;
 import javax.annotation.Nullable;
-import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldInsnNode;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.InsnNode;
-import org.objectweb.asm.tree.MethodNode;
 
 @SuppressWarnings("unused")
 @IFMLLoadingPlugin.MCVersion("1.12.2")
@@ -76,48 +65,4 @@ public final class NoFingerprint implements IFMLLoadingPlugin {
   }
 }
 
-@SuppressWarnings("unused")
-final class ModContainerTransformer implements IClassTransformer {
 
-  private static final String FML_MOD_CONTAINER_VM_NAME = "Lnet/minecraftforge/fml/common/FMLModContainer;";
-
-  @Override
-  public byte[] transform(String name, String transformedName, byte[] basicClass) {
-    if (!"net.minecraftforge.fml.common.FMLModContainer".equals(transformedName)) {
-      return basicClass;
-    }
-    ClassReader classReader = new ClassReader(basicClass);
-    ClassNode classNode = new ClassNode();
-    classReader.accept(classNode, 0); // Just check annotations
-
-    MethodNode constructMod = null;
-    for (MethodNode each : classNode.methods) {
-      if (each.name.equals("constructMod")) {
-        constructMod = each;
-      }
-    }
-
-    if (constructMod == null) {
-      NoFingerprint.LOGGER.error("Cannot find constructMod method!");
-      return basicClass;
-    }
-
-    InsnList list = constructMod.instructions;
-    for (ListIterator<AbstractInsnNode> iterator = list.iterator();
-        iterator.hasNext(); ) {
-      AbstractInsnNode current = iterator.next();
-      if (current.getOpcode() == Opcodes.PUTFIELD) {
-        FieldInsnNode fieldInsnNode = (FieldInsnNode) current;
-        if (fieldInsnNode.owner.equals(FML_MOD_CONTAINER_VM_NAME) && fieldInsnNode.name
-            .equals("fingerprintNotPresent") && fieldInsnNode.desc.equals("Z")) {
-          list.insertBefore(fieldInsnNode, new InsnNode(Opcodes.POP));
-          list.insert(fieldInsnNode, new InsnNode(Opcodes.ICONST_0));
-        }
-      }
-    }
-
-    ClassWriter classWriter = new ClassWriter(0);
-    classNode.accept(classWriter);
-    return classWriter.toByteArray();
-  }
-}
