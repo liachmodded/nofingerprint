@@ -38,13 +38,12 @@ import org.objectweb.asm.tree.MethodNode;
 @SuppressWarnings("unused")
 public final class ModContainerTransformer implements IClassTransformer {
 
-  private static final String FML_MOD_CONTAINER_VM_NAME = "Lnet/minecraftforge/fml/common/FMLModContainer;";
-
   @Override
   public byte[] transform(String name, String transformedName, byte[] basicClass) {
     if (!"net.minecraftforge.fml.common.FMLModContainer".equals(transformedName)) {
       return basicClass;
     }
+    NoFingerprint.LOGGER.debug("Found FMLModContainer");
     ClassReader classReader = new ClassReader(basicClass);
     ClassNode classNode = new ClassNode();
     classReader.accept(classNode, 0); // Just check annotations
@@ -67,10 +66,12 @@ public final class ModContainerTransformer implements IClassTransformer {
       AbstractInsnNode current = iterator.next();
       if (current.getOpcode() == Opcodes.PUTFIELD) {
         FieldInsnNode fieldInsnNode = (FieldInsnNode) current;
-        if (fieldInsnNode.owner.equals(FML_MOD_CONTAINER_VM_NAME) && fieldInsnNode.name
+        if (fieldInsnNode.owner.equals("net/minecraftforge/fml/common/FMLModContainer")
+            && fieldInsnNode.name
             .equals("fingerprintNotPresent") && fieldInsnNode.desc.equals("Z")) {
+          NoFingerprint.LOGGER.debug("Found fingerPrintNotPresent usage");
           list.insertBefore(fieldInsnNode, new InsnNode(Opcodes.POP));
-          list.insert(fieldInsnNode, new InsnNode(Opcodes.ICONST_0));
+          list.insertBefore(fieldInsnNode, new InsnNode(Opcodes.ICONST_0));
         }
       }
     }
